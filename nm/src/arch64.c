@@ -1,17 +1,11 @@
 #include "../inc/nm.h"
 
-// void		print_unsigned(size_t addr, size_t base, size_t len)
-// {
-// 	char	value;
-//
-// 	if (len <= 0)
-// 		return ;
-// 	print_unsigned(addr / base, base, len - 1);
-// 	value = HEX_STRING[(addr % base)];
-// 	write(1, &value, 1);
-// }
+/*
+** Affiche l'adresse du symbol
+** Si undefined, affiche 16 espaces
+*/
 
-void hexa(uintmax_t address, int undefined)
+void print_hexa_x64(uintmax_t address, int undefined)
 {
   char *strptr;
 
@@ -24,40 +18,25 @@ void hexa(uintmax_t address, int undefined)
   free(strptr);
 }
 
-void sort_symbols(t_symbol *syms)
-{
-  (void)syms;
-}
-
 /*
 ** Un symbol de type N_UNDF, l'adresse est vide et le type de symbol est U pour undefined
 **
 ** name = string du symbol
+** Documentation sur les types de symbole possible : https://github.com/grumbach/nm_otool
 */
 
-void print(struct nlist_64 sym, char *name)
+void print(t_symbol sym)
 {
-  uint8_t     type;
-  uint8_t     ext;
-  uint8_t     sect;
-  uint64_t    value;
 
-  type = sym.n_type & N_TYPE;
-  ext  = sym.n_type & N_EXT;
-  sect = sym.n_sect;
-  value = sym.n_value;
-
-  /* ADRESSE du symbole */
-  hexa((uintmax_t)value, (type == N_UNDF));
-  /* TYPE du symbole */
-  if (name == 0)
-    return ;
-  else if (type == N_UNDF)
-    write(1, " U ", 3);
-  /* NOM du symbole */
-  write(1, " ", 1);
-  ft_putstr(name);
-  write(1, "\n", 1);
+  print_hexa_x64((uintmax_t)sym.value, (sym.type == N_UNDF));
+  if (sym.type == N_UNDF)
+    write(1, sym.ext ? " U " : " u ", 3);
+  else if (sym.type == N_ABS)
+    write(1, sym.ext ? " A " : " a ", 3);
+  else if (sym.type == N_INDR)
+    write(1, sym.ext ? " I " : " i ", 3);
+  // else if (sym.type == N_SECT)
+  ft_printf(" %s\n", sym.name);
 }
 
 /*
@@ -76,29 +55,30 @@ void print(struct nlist_64 sym, char *name)
 static void output64(void *ptr, int nsyms, int symoff, int stroff)
 {
   int             i;
+  char            *tmp;
   char            *strtab;
   t_symbol        *syms;
   struct nlist_64 *array;
 
-  i = -1;
-  strtab = ptr + stroff;
   array = ptr + symoff;
-  // TODO : Trier les symboles car ils doivent être affichés dans l'ordre
-  syms = (t_symbol*)malloc(sizeof(t_symbol) * nsyms);
-  if (syms == 0)
+  strtab = ptr + stroff;
+  if ((syms = (t_symbol*)malloc(sizeof(t_symbol) * nsyms)) == 0)
     return ;
+  i = -1;
   while (++i < nsyms)
   {
-    // syms[i].name = malloc(sizeof(char) * ft_strlen((char*)array[i].n_un.n_strx));
-    // syms[i].name = ft_strcpy(syms[i].name, array[i].n_un.n_strx);
-    syms[i].type = array[i].n_type;
-    syms[i].ext  = array[i].n_desc;
+    tmp = strtab + array[i].n_un.n_strx;
+    ft_strcpy(syms[i].name, tmp);
+    syms[i].type = array[i].n_type & N_TYPE;
+    syms[i].ext  = array[i].n_type & N_EXT;
     syms[i].sect = array[i].n_sect;
     syms[i].value = array[i].n_value;
-    print(array[i], strtab + array[i].n_un.n_strx);
   }
+  i = -1;
+  syms = sort(syms, nsyms);
+  while (++i < nsyms)
+    print(syms[i]);
 }
-
 
 /*
 ** lc = (void *)lc + lc->cmdsize

@@ -1,5 +1,5 @@
 NAME = nm
-SRCS = src/nm.c src/arch64.c src/arch32.c
+SRCS = src/nm.c src/arch64.c src/utils.c
 FLAGS = -Wall -Wextra -Werror
 OBJS = ${SRCS:.c=.o}
 HEADER = -I ./inc/

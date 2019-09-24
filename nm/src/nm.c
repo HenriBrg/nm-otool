@@ -15,8 +15,8 @@ static void nm(void *ptr)
   magic = *(unsigned int*)ptr;
   if (magic == MH_MAGIC_64 || magic == MH_CIGAM_64)
     arch64(ptr);
-  else if (magic == MH_MAGIC || magic == MH_CIGAM)
-    arch32(ptr);
+  // else if (magic == MH_MAGIC || magic == MH_CIGAM)
+  //   arch32(ptr);
 }
 
 /*
