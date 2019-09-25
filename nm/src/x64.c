@@ -2,10 +2,10 @@
 
 /*
 ** Affiche l'adresse du symbol
-** Si undefined, affiche 16 espaces
+** Si symbole de type U (undefined), affiche 16 espaces
 */
 
-void print_hexa_x64(uintmax_t address, int undefined)
+void hexa(uintmax_t address, int undefined)
 {
   char *strptr;
 
@@ -28,7 +28,7 @@ void print_hexa_x64(uintmax_t address, int undefined)
 void print(t_symbol sym)
 {
 
-  print_hexa_x64((uintmax_t)sym.value, (sym.type == N_UNDF));
+  hexa((uintmax_t)sym.value, (sym.type == N_UNDF));
   if (sym.type == N_UNDF)
     write(1, sym.ext ? " U " : " u ", 3);
   else if (sym.type == N_ABS)
@@ -52,32 +52,56 @@ void print(t_symbol sym)
 ** Exemple : Bitwise & : 1110 & 0111 = 0110
 */
 
-static void output64(void *ptr, int nsyms, int symoff, int stroff)
+static void sym64(void *ptr, struct symtab_command *sym)
 {
   int             i;
   char            *tmp;
   char            *strtab;
-  t_symbol        *syms;
+  t_symbol        *symscpy;
   struct nlist_64 *array;
 
-  array = ptr + symoff;
-  strtab = ptr + stroff;
-  if ((syms = (t_symbol*)malloc(sizeof(t_symbol) * nsyms)) == 0)
+  array = ptr + sym->symoff;
+  strtab = ptr + sym->stroff;
+  if ((symscpy = (t_symbol*)malloc(sizeof(t_symbol) * sym->nsyms)) == 0)
     return ;
   i = -1;
-  while (++i < nsyms)
+  while (++i < (int)sym->nsyms)
   {
     tmp = strtab + array[i].n_un.n_strx;
-    ft_strcpy(syms[i].name, tmp);
-    syms[i].type = array[i].n_type & N_TYPE;
-    syms[i].ext  = array[i].n_type & N_EXT;
-    syms[i].sect = array[i].n_sect;
-    syms[i].value = array[i].n_value;
+    ft_strcpy(symscpy[i].name, tmp);
+    symscpy[i].type = array[i].n_type & N_TYPE;
+    symscpy[i].ext  = array[i].n_type & N_EXT;
+    symscpy[i].sect = array[i].n_sect;
+    symscpy[i].value = array[i].n_value;
   }
   i = -1;
-  syms = sort(syms, nsyms);
-  while (++i < nsyms)
-    print(syms[i]);
+  symscpy = sort(symscpy, sym->nsyms);
+  while (++i < (int)sym->nsyms)
+    print(symscpy[i]);
+}
+
+/*
+** Voir img4
+** Segment : __text, __data, __bss
+** Un segment contient plusieurs sections dans lesquelles le contenu du programme est distribué
+**
+** + de détail sur segment et section : https://opensource.apple.com/source/xnu/xnu-2050.18.24/EXTERNAL_HEADERS/mach-o/loader.h
+*/
+
+static void segment(struct load_command *lc)
+{
+  uint32_t                  i;
+  struct segment_command_64 *segment;
+  struct section_64         *section;
+
+  i = 0;
+  segment = (struct segment_command_64*)lc;
+  section = (struct section_64*)((void*)lc + sizeof(segment));
+  while (i < segment->nsects)
+  {
+    printf("Section[%d] : %s\n", i, section[i].sectname);
+    i++;
+  }
 }
 
 /*
@@ -88,7 +112,7 @@ static void output64(void *ptr, int nsyms, int symoff, int stroff)
 ** on est positionné en mémoire
 */
 
-void arch64(void *ptr)
+void x64(void *ptr)
 {
   int i;
   int ncmds;
@@ -102,10 +126,12 @@ void arch64(void *ptr)
   lc = (void *)ptr + sizeof(*header);
   while (++i < ncmds)
   {
+    if (lc->cmd == LC_SEGMENT_64)
+      segment(lc);
     if (lc->cmd == LC_SYMTAB)
     {
       sym = (struct symtab_command *)lc;
-      output64(ptr, sym->nsyms, sym->symoff, sym->stroff);
+      sym64(ptr, sym);
       break ;
     }
     lc = (void *)lc + lc->cmdsize;

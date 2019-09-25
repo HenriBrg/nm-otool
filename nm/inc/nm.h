@@ -20,7 +20,7 @@ typedef struct	s_symbol
 	uint64_t	value;
 }				t_symbol;
 
-void arch64(void *ptr);
+void x64(void *ptr);
 t_symbol *sort(t_symbol *syms, int size);
 
 #endif
